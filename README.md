@@ -50,3 +50,8 @@ pip install xlutils
 python CnkiDownload_remote.py
 ```
 ## 3问题及解决办法
+1. 不同关键词的日志在同一个文件中  
+   2019.6.28:解决该bug
+2. 出现：Message: unknown error: failed to close window in 20 seconds.  
+  2019.6.28：原因是浏览器有警告弹窗,解决：通过切换到论文详情页来关闭弹窗错误。由于切换到论文详情页后弹窗自动关闭，因此无法使用driver.switch_to.alert的方法来解决这个问题。
+

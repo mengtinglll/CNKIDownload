@@ -4,6 +4,9 @@ import os
 import random
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 from logger import Logger
 import logging
@@ -250,10 +253,22 @@ class CnkiDownloader():
                     # 下载是否成功判断
                     retry_count = 0
                     while len(self.driver.window_handles) > 2:
-                        # 关掉不能正确下载的页面窗口，并跳转回论文详情窗口
                         for win in self.driver.window_handles:
-                            if win != self.window_1 and win != self.window_rec:
-                                self.driver.switch_to_window(win)
+                            # 处理弹窗Alert
+                            if win == self.window_rec:
+                                # 切换到论文详情页面,可以关闭Alert窗口
+                                # driver.switch_to.alert对于知网的Alert弹窗无效,对于知网点击下载PDF后在
+                                # 新窗口弹出的警告窗口，通过切换到论文详情页可以关闭该弹窗窗口
+                                self.driver.switch_to_window(self.window_rec)
+                                time.sleep(1)
+                                if len(self.driver.window_handles) == 2:
+                                    self.logger.debug('跳过下载论文: {}, 原因: 弹窗错误。'.format(title))
+                                    # 弹窗错误无法通过重试解决，直接跳过
+                                    break
+
+                            # 关掉不能正确下载的页面窗口，并跳转回论文详情窗口
+                            elif win != self.window_1 and win != self.window_rec:
+                                self.driver.switch_to_window(win)        
                                 try:
                                     if self.driver.current_window_handle != self.window_1 and self.driver.current_window_handle != self.window_rec:
                                         self.driver.close()
@@ -271,12 +286,12 @@ class CnkiDownloader():
                                     self.logger.warning('下载重试次数超过{}次，放弃。'.format(config['download_retry_times']))
                                     break
                         
-                        # 重试次数达到上限，退出
-                        if retry_count == config['download_retry_times']:
-                            break
-                        retry_count += 1
-                        # 下载失败计数加1
-                        self.failed_cnt += 1
+                                # 重试次数达到上限，退出
+                                if retry_count == config['download_retry_times']:
+                                    break
+                                retry_count += 1
+                                # 下载失败计数加1
+                                self.failed_cnt += 1
                 except Exception as e:
                     self.logger.error('下载【{}】失败, 原因: {}'.format(title, e))
                 
@@ -314,10 +329,10 @@ class CnkiDownloader():
 
                 # logger配置,日志文件位于work_addr目录下
                 Logger.config(
-                    log_file=os.path.join(work_addr,'crawler_cnki.log'),
+                    log_file=os.path.join(work_addr,kw+'crawler_cnki.log'),
                     use_stdout=True,
                     log_level=logging.DEBUG)
-                self.logger = Logger.get_logger('crawler_cnki')
+                self.logger = Logger.get_logger(kw+'crawler_cnki')
                 self.logger.info('开始下载关键词: {}'.format(kw))
                 self.cnt = 0
 
