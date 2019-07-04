@@ -14,6 +14,8 @@ from result_record import ResultRecorder
 import datetime
 import re
 from configure import config
+from tqdm import tqdm, trange
+from glob import glob
 
 class CnkiDownloader():
     """知网pdf下载类"""
@@ -49,6 +51,7 @@ class CnkiDownloader():
 
     def go_to_page(self, page):
         """跳转到指定页面
+        通过修改下一页按键所跳转页面的地址来实现
         Args:
             page: 需要跳转的页码
         """
@@ -65,6 +68,23 @@ class CnkiDownloader():
             # 跳转到搜索结果frame
             self.driver.switch_to.default_content()
             self.driver.switch_to.frame("iframeResult")
+    def check_download(self, timeout=5, time_step=0.5):
+        """退出浏览器前检查是否还有未下载完成的文件
+        通过检查是否有.crdownload后缀文件来实现，超时后删除该文件
+        Args:
+            timeout: 设置超时时间
+            time_step: 检查文件的时间间隔
+        """
+        count = 0
+        while True:
+            if count > int(timeout/time_step):
+                break
+            # 判断是否有.crdownload后缀格式文件
+            dl_file = glob(os.path.join(self.work_addr, '*.crdownload'))
+            if not dl_file:
+                break
+            count += 1
+            time.sleep(time_step)
 
     def serach_keyword(self, keyword, login=False, quit=False):
         """
@@ -80,6 +100,9 @@ class CnkiDownloader():
         # 退出驱动，关闭所有选项卡, 重新打开浏览器界面
         if quit: 
             # TODO(inumo): 增加对是否还有文件正在下载的判断,通过工作目录下的文件变化
+            # 检查是否还有未下载完成的文件
+            if self.download_pdf and self.driver:
+                self.check_download()
             if self.driver:
                 self.driver.quit()
                 self.window_1 = None
@@ -91,6 +114,7 @@ class CnkiDownloader():
             self.window_1 = self.driver.current_window_handle
 
             # 搜索关键词前选择来源期刊
+            # TODO(inumo): 增加try
             if 'all' not in config['source']:
                 for s in config['source']:
                     if s == 'sci': #SCI来源期刊
@@ -106,6 +130,7 @@ class CnkiDownloader():
                     time.sleep(1)
         
         # 检查是否根据IP登录了
+        # TODO(inumo): 修改登录成功的判断条件
         need_login = False
         try:
             if not self.driver.find_element_by_xpath('//*[@id="Ecp_loginShowName"]').text:
@@ -231,6 +256,7 @@ class CnkiDownloader():
                 self.driver.switch_to.window(current_window)
                 time.sleep(1)
                 try:
+                    # 跳过题录中没有摘要的论文
                     abstract = self.driver.find_element_by_xpath('//*[@id="ChDivSummary"]').text.strip()
                     try:
                         keyword = self.driver.find_element_by_xpath('//label[@id="catalog_KEYWORD"]/..').text[4:]
@@ -252,6 +278,7 @@ class CnkiDownloader():
                     
                     # 下载是否成功判断
                     retry_count = 0
+                    handle_alert = False
                     while len(self.driver.window_handles) > 2:
                         for win in self.driver.window_handles:
                             # 处理弹窗Alert
@@ -263,6 +290,7 @@ class CnkiDownloader():
                                 time.sleep(1)
                                 if len(self.driver.window_handles) == 2:
                                     self.logger.debug('跳过下载论文: {}, 原因: 弹窗错误。'.format(title))
+                                    handle_alert = True
                                     # 弹窗错误无法通过重试解决，直接跳过
                                     break
 
@@ -286,12 +314,12 @@ class CnkiDownloader():
                                     self.logger.warning('下载重试次数超过{}次，放弃。'.format(config['download_retry_times']))
                                     break
                         
-                                # 重试次数达到上限，退出
-                                if retry_count == config['download_retry_times']:
-                                    break
-                                retry_count += 1
-                                # 下载失败计数加1
-                                self.failed_cnt += 1
+                        # 重试次数达到上限或遇到Alert窗口退出
+                        if retry_count == config['download_retry_times'] or handle_alert:
+                            break
+                        retry_count += 1
+                        # 下载失败计数加1
+                        self.failed_cnt += 1
                 except Exception as e:
                     self.logger.error('下载【{}】失败, 原因: {}'.format(title, e))
                 
@@ -396,7 +424,9 @@ class CnkiDownloader():
                 self.logger.debug("关键词：【{}】共有 {} 条结果， 共 {} 页。".format(kw, res_num, page_num))
 
                 # 遍历所有页面，下载搜索结果条目
-                for pg in range(start_page, page_num + 1):
+                qbar = tqdm(range(start_page, page_num + 1))
+                for pg in qbar:
+                    qbar.set_description('处理关键词[{}]'.format(kw))
                     self.cur_page = pg
                     # 处理本页面信息
                     if pg == page_num:
