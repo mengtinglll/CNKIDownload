@@ -19,6 +19,7 @@ pip install xlutils
 注意版本需与电脑安装的浏览器版本对应，附：版本号对应描述（64位浏览器下载32位即可），下载后与chrome安装目录放在一起，然后配置至环境变量即可。
 
 ## 2运行
+### 2.1 直接下载PDF
 * 知网论文下载需要连接VPN。  
 **确保程序运行时已经连接上校内网VPN。**  
 * 在configure.py文件中对运行的参数进行设置，程序运行配置主要有：  
@@ -49,6 +50,24 @@ pip install xlutils
 ```
 python CnkiDownload_remote.py
 ```
+### 2.2 先获取PDF链接地址再统一下载
+由于知网每次按照相同的条件检索时（关键词，期刊范围，排序方式）返回的结果不完全一致，导致文件可能存在重复下载的情况。为了解决该问题，采用下一次性获取PDF链接地址，然后再通过读取excel中的PDF链接地址来下载PDF。（两步）
+* STEP1: 获取PDF链接地址
+  **这个步骤因为不下载PDF，因此不需要VPN，在所有网络条件下都可用。** 这个方法的延时也可以相应设置小一些，配置文件为 ```configure_fast.py```，配置完成后运行：
+  ```bash
+  python CnkiDownload_fast.py
+  ```
+  结果会存在关键词目录下的```result.xls```文件夹下。
+* STEP2: 下载PDF  
+  **这个步骤需要连接VPN。**，可以一次性下载一个文件夹下的很多个关键词文件夹，即传入的文件夹下包含很多个关键词文件夹。
+  ```bash
+  python download_pdf.py path_to_path_of_kws -d
+  ```
+  如果中途下载失败，需要从指定位置开始下载，则应该指定起始的索引值.
+  ```bash
+  python download_pdf.py path_to_kw -s start_index
+  ```
+  索引值根据已经下载的PDF和excel中来确定。
 ## 3问题及解决办法
 1. 不同关键词的日志在同一个文件中  
    2019.6.28:解决该bug
