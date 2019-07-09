@@ -68,6 +68,28 @@ python CnkiDownload_remote.py
   python download_pdf.py path_to_kw -s start_index
   ```
   索引值根据已经下载的PDF和excel中来确定。
+* STEP2.1: 多线程下载PDF  
+  **这个步骤需要连接VPN。**  
+  运行脚本```python download_pdf_multi.py args```args为使用的参数，参数说明如下：  
+使用说明：参数必须传入-kd, -ud, -md中的一种,且只能传入一种。  
+        -kd: 传入关键词目录  
+        -ud: 传入包含多个关键词目录的目录,可配合-x使用,排除某几个目录  
+        -md: 传入多个关键词目录  
+ 其他参数(可选参数)：  
+        -s: 起始index,-e:终止index  
+        
+例子1. 'D:\PDFDownload\预算\差异分析'为关键词目录
+```bash
+python download_pdf_multi.py -kd D:\PDFDownload\预算\差异分析
+```
+例子2. 'D:\PDFDownload\预算'为包含关键词目录的目录
+```bash
+python download_pdf_multi.py -ud D:\PDFDownload\预算
+```
+例子3. 'D:\PDFDownload\预算\差异分析'，'D:\PDFDownload\预算\xxx'为多个关键词目录
+```bash
+python download_pdf_multi.py -md D:\PDFDownload\预算\差异分析 -md D:\PDFDownload\预算\xxx -md D:\PDFDownload\预算\xx1
+```
 ## 3问题及解决办法
 1. 不同关键词的日志在同一个文件中  
    2019.6.28:解决该bug
